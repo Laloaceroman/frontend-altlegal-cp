@@ -248,10 +248,12 @@ app.header = {
       $('.header__ham').on('click', function(e) {
         return app.header.nav.toggle();
       });
-      $(".header__nav__close, .header__nav__bg").on('click', function() {
+      $(".header__nav__close, .header__nav__bg, .header__nav__opacity").on('click', function() {
         return app.header.nav.out();
       });
-      $(".header__nav__nav li").each(function() {
+      $('.header__nav__mobile .has-submenu > a').on('click', function(e) {
+        e.preventDefault();
+        $(this).parent('.has-submenu').toggleClass('active');
         if ($(this).find("ul").length || $(this).is("[supernav]")) {
           return $(this).children("a").append("<span class='fa fa-angle-down'></span>");
         }
@@ -864,36 +866,51 @@ app.slider = {
 
 app.stats = {
   init: function() {
-    var animateNumbers, duration, observer, sectionStats;
+    var animateNumbers, animated, duration, observer, sectionStats;
     duration = 2000;
+    animated = false;
     animateNumbers = function() {
-      return $('.article--stat').each(function() {
-        var $element, animateNumber, finalValue, startTime, startValue;
-        $element = $(this).find(".article__number");
-        finalValue = parseInt($element.data('value'), 10);
-        startValue = 0;
+      if (animated) {
+        return;
+      }
+      animated = true;
+      return $('[data-count]').each(function() {
+        var $el, animate, decimals, finalValue, prefix, startTime, suffix;
+        $el = $(this);
+        finalValue = parseFloat($el.data('count'));
+        prefix = $el.data('prefix') || '';
+        suffix = $el.data('suffix') || '';
+        decimals = String(finalValue).includes('.') ? String(finalValue).split('.')[1].length : 0;
         startTime = null;
-        animateNumber = function(timestamp) {
-          var currentValue, progress;
+        animate = function(timestamp) {
+          var current, eased, pct, progress;
           if (startTime == null) {
             startTime = timestamp;
           }
           progress = timestamp - startTime;
-          currentValue = Math.min(Math.floor((progress / duration) * finalValue), finalValue);
-          $element.text("+" + currentValue);
-          if (progress < duration) {
-            return requestAnimationFrame(animateNumber);
+          pct = Math.min(progress / duration, 1);
+          eased = 1 - Math.pow(1 - pct, 3);
+          current = finalValue * eased;
+          if (decimals > 0) {
+            $el.text("" + prefix + (current.toFixed(decimals)) + suffix);
+          } else {
+            $el.text("" + prefix + (Math.floor(current)) + suffix);
+          }
+          if (pct < 1) {
+            return requestAnimationFrame(animate);
           }
         };
-        return requestAnimationFrame(animateNumber);
+        return requestAnimationFrame(animate);
       });
     };
-    observer = new IntersectionObserver(function(entries, observer) {
+    observer = new IntersectionObserver(function(entries) {
       return entries.forEach(function(entry) {
         if (entry.isIntersecting) {
           return animateNumbers();
         }
       });
+    }, {
+      threshold: 0.2
     });
     sectionStats = $('.section--stats')[0];
     if (sectionStats != null) {
